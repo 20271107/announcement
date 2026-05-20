@@ -468,19 +468,36 @@
         return result.map(field => field.replace(/^"|"$/g, ''));
     }
 
+   // 專為 2PACX- 發布網址優化的資料抓取函數
     async function fetchSheetData(sheetName) {
         if (!USE_REAL_SHEET) return null;
-        // 加上隨機時間參數，確保每次都拿到最新資料
-        const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
+        
+        // 使用發布 ID 專用的標準 CSV 導出網址
+        const url = `https://docs.google.com/spreadsheets/d/e/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
+        
         try {
+            console.log(`正在讀取工作表: ${sheetName}`);
             const resp = await fetch(url, { cache: 'no-store' });
-            if (!resp.ok) return null;
+            
+            if (!resp.ok) {
+                console.warn(`HTTP 錯誤: ${resp.status}`);
+                return null;
+            }
+            
             const csvText = await resp.text();
-            if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) return null;
+            
+            if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) {
+                console.warn(`抓取失敗：請檢查試算表是否已確實發布`);
+                return null;
+            }
+            
             const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
+            if (rows.length < 2) return null;
+            
             return rows.map(row => parseCSVRow(row));
+            
         } catch(e) {
-            console.error(e);
+            console.warn(`讀取工作表 ${sheetName} 錯誤:`, e.message);
             return null;
         }
     }
