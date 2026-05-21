@@ -489,12 +489,21 @@
     }
 
     let currentTodos = [];
+    // ✅ 這是全新的修正版：確保只抓「Todo」工作表今天的內容
     async function loadTodosFromSheet() {
+        // 強制向 Google 要求「Todo」這個分頁
         const rowData = await fetchSheetRowByDate('Todo');
+        
+        // 偵測是否有抓到今天這一列的資料
         if (rowData && rowData.length >= 2) {
             const tasks = [];
+            // 從第 2 個欄位（B欄）開始往後抓所有的待辦事項
             for (let i = 1; i < rowData.length; i++) {
-                if (rowData[i] && rowData[i].trim() !== "") tasks.push(rowData[i].trim());
+                let taskText = rowData[i] ? rowData[i].trim() : "";
+                // 排除空白的格子，也防範不小心抓到值日生名字
+                if (taskText !== "" && !taskText.includes("值日生") && !taskText.includes("輪值")) {
+                    tasks.push(taskText);
+                }
             }
             if (tasks.length > 0) return tasks;
         }
