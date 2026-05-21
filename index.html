@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>智慧開機儀表板 - 班級資訊中心 + 全球股市即時看板</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', 'Roboto', 'Noto Sans TC', sans-serif;
+            position: relative;
+            background-color: #0b0e17;
+        }
+
+        .bg-slideshow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            object-fit: cover;
+            transition: opacity 1.2s ease-in-out;
+            opacity: 0;
+        }
+
+        .bg-slideshow.active {
+            opacity: 1;
+        }
+
+        .overlay-mask {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.55);
+            backdrop-filter: brightness(0.85) blur(2px);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .content {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            padding: 16px 20px 20px 20px;
+            gap: 16px;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        .schedule-area {
+            width: 400px;
+            background: rgba(20, 25, 45, 0.85);
+            backdrop-filter: blur(14px);
+            border-radius: 32px;
+            padding: 14px 18px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,210,0.3);
+            transition: all 0.2s;
+        }
+
+        .schedule-title {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #FFE6B0;
+            border-left: 4px solid #F9B23F;
+            padding-left: 12px;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+
+        .class-table {
+            width: 100%;
+            color: #F0F3FA;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .class-table th, .class-table td {
+            padding: 5px 4px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,240,0.2);
+        }
+
+        .class-table th {
+            font-weight: 600;
+            color: #FFD966;
+        }
+
+        .dashboard-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 8px;
+            align-items: stretch;
+        }
+
+        .left-info {
+            flex: 1.2;
+            min-width: 260px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .glass-card {
+            background: rgba(10, 14, 23, 0.75);
+            backdrop-filter: blur(14px);
+            border-radius: 32px;
+            padding: 18px 20px;
+            border: 1px solid rgba(255,215,150,0.35);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+            transition: all 0.2s;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #FFDE9C;
+            border-left: 4px solid #F9B23F;
+            padding-left: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            font-weight: 500;
+            line-height: 1.4;
+            color: #f0f3fa;
+            word-break: break-word;
+        }
+
+        .todo-list {
+            list-style: none;
+            margin-top: 6px;
+        }
+        .todo-list li {
+            background: rgba(255,255,245,0.1);
+            margin-bottom: 10px;
+            padding: 10px 14px;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.95rem;
+            backdrop-filter: blur(4px);
+        }
+        .todo-status {
+            width: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .todo-text {
+            flex: 1;
+            color: #f5f0e0;
+        }
+        .todo-text.done {
+            text-decoration: line-through;
+            opacity: 0.65;
+        }
+        .refresh-note-small {
+            font-size: 0.65rem;
+            text-align: right;
+            margin-top: 12px;
+            opacity: 0.7;
+            color: #ddd;
+        }
+
+        .stock-panel {
+            flex: 2;
+            min-width: 380px;
+            background: rgba(10, 14, 23, 0.75);
+            backdrop-filter: blur(14px);
+            border-radius: 32px;
+            padding: 18px 20px;
+            border: 1px solid rgba(255,215,150,0.35);
+            overflow-y: auto;
+        }
+
+        .market-section {
+            margin-bottom: 20px;
+            border-bottom: 1px dashed rgba(255,200,120,0.4);
+            padding-bottom: 14px;
+        }
+        .market-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #FFCF8A;
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stock-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px 12px;
+        }
+        .stock-item {
+            background: rgba(0,0,0,0.4);
+            border-radius: 20px;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.85rem;
+        }
+        .stock-name {
+            font-weight: 500;
+            color: #FFE0B5;
+        }
+        .stock-price {
+            font-weight: bold;
+            color: #fff;
+        }
+        .stock-change {
+            font-size: 0.75rem;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+        .positive {
+            color: #ff7b6b;
+        }
+        .negative {
+            color: #6bcb77;
+        }
+        .update-time {
+            font-size: 0.65rem;
+            text-align: right;
+            margin-top: 12px;
+            opacity: 0.7;
+        }
+
+        .gallery-control {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(10px);
+            padding: 8px 18px;
+            border-radius: 48px;
+            display: flex;
+            gap: 14px;
+            z-index: 5;
+            font-size: 0.8rem;
+            pointer-events: auto;
+        }
+
+        .gallery-control button {
+            background: #2c3e66;
+            border: none;
+            color: white;
+            padding: 5px 14px;
+            border-radius: 32px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .gallery-control button:hover {
+            background: #4a6f9e;
+            transform: scale(0.96);
+        }
+
+        @media (max-width: 900px) {
+            .schedule-area { width: 100%; max-width: 380px; }
+            .stock-panel { min-width: 260px; }
+            .dashboard-grid { flex-direction: column; }
+            .content { padding: 12px; }
+        }
+        .error-txt {
+            color: #ffae9e;
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body>
+<div id="bgContainer" style="position:fixed; top:0; left:0; width:100%; height:100%; z-index:0;"></div>
+<div class="overlay-mask"></div>
+
+<div class="content">
+    <div class="top-bar">
+        <div class="schedule-area">
+            <div class="schedule-title">📖 114學年度課表</div>
+            <table class="class-table" id="classTable">
+                <thead><tr><th>節次</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th></tr></thead>
+                <tbody id="scheduleTbody"></tbody>
+            </table>
+            <div class="refresh-note-small">📌 課表固定 · 可編輯HTML自訂</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="left-info">
+            <div class="glass-card">
+                <div class="card-title">🧑‍🏫 今日教務處輪值</div>
+                <div class="info-value" id="dutyValue">讀取 Google 試算表中...</div>
+                <div class="refresh-note-small" id="dutyUpdateHint">📅 每日更新</div>
+            </div>
+
+            <div class="glass-card">
+                <div class="card-title">✅ 即將發生的事 · 待辦清單</div>
+                <ul class="todo-list" id="todoListContainer">
+                    <li style="opacity:0.6;">⏳ 載入待辦事項中...</li>
+                </ul>
+                <div class="refresh-note-small">📌 點擊圓圈可切換完成狀態 (即時記錄於瀏覽器)</div>
+                <div class="refresh-note-small" id="todoUpdateTime">📡 資料來源：Google試算表 (最多5項)</div>
+            </div>
+        </div>
+
+        <div class="stock-panel">
+            <div class="card-title" style="margin-bottom: 12px;">📊 全球即時股市</div>
+            <div id="stockWidgets">
+                <div class="market-section">
+                    <div class="market-title">🇨🇳 陸股 & 港股</div>
+                    <div class="stock-grid" id="cnhkStockList">載中...</div>
+                </div>
+                <div class="market-section">
+                    <div class="market-title">🇹🇼 台灣股市</div>
+                    <div class="stock-grid" id="twStockList">載入中...</div>
+                </div>
+                <div class="market-section">
+                    <div class="market-title">🇺🇸 美股 (標普/那指/費半)</div>
+                    <div class="stock-grid" id="usStockList">載入中...</div>
+                </div>
+                <div class="update-time" id="stockUpdateTime">🔄 更新中...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="gallery-control">
+    <button id="prevBgBtn">◀ 上一張</button>
+    <button id="nextBgBtn">下一張 ▶</button>
+    <span class="bg-status" id="bgCounter">圖片 1 / ?</span>
+</div>
+
+<script>
+    // =============================================================
+    // Google 試算表設定
+    // =============================================================
+    // 請確認此 ID 是你在網址列看到的 44 碼亂碼。
+    const GOOGLE_SHEET_ID = '2PACX-1vTeM_3W8hnD4Tpw_5uALb7wPrC_dVOyGLgvLrxQQ2_mtUoqpRd7jbsaLHNps9wOWSZwYsGZyVvj-tma';
+    const USE_REAL_SHEET = GOOGLE_SHEET_ID && GOOGLE_SHEET_ID !== '' && GOOGLE_SHEET_ID !== 'YOUR_SHEET_ID_HERE';
+
+    const DEMO_DUTY = "今日值日生：王小明、陳小華";
+    const DEMO_TODOS = ["繳交數學作業", "準備英文考試", "班會討論主題", "打掃教室環境", "填寫問卷調查"];
+
+    // 1. 背景圖片庫
+    const imageGallery = [
+        'https://picsum.photos/id/104/1920/1080',
+        'https://picsum.photos/id/15/1920/1080',
+        'https://picsum.photos/id/29/1920/1080',
+        'https://picsum.photos/id/96/1920/1080',
+        'https://picsum.photos/id/155/1920/1080',
+        'https://picsum.photos/id/169/1920/1080',
+        'https://picsum.photos/id/42/1920/1080'
+    ];
+    let currentBgIndex = 0;
+    let bgImagesElements = [];
+    let bgInterval;
+    const AUTO_SWITCH_SEC = 25;
+
+    function initBackground() {
+        const container = document.getElementById('bgContainer');
+        container.innerHTML = '';
+        bgImagesElements = [];
+        imageGallery.forEach((url, idx) => {
+            const img = document.createElement('img');
+            img.src = url;
+            img.classList.add('bg-slideshow');
+            if (idx === 0) img.classList.add('active');
+            img.style.objectFit = 'cover';
+            img.style.width = '100%';
+            img.style.height = '100%';
+            container.appendChild(img);
+            bgImagesElements.push(img);
+        });
+        updateBgCounter();
+        startAutoSwitch();
+    }
+
+    function showBackground(index) {
+        if (!bgImagesElements.length) return;
+        const newIdx = (index + bgImagesElements.length) % bgImagesElements.length;
+        bgImagesElements.forEach((img, i) => {
+            i === newIdx ? img.classList.add('active') : img.classList.remove('active');
+        });
+        currentBgIndex = newIdx;
+        updateBgCounter();
+    }
+
+    function nextBg() { showBackground(currentBgIndex + 1); resetAutoTimer(); }
+    function prevBg() { showBackground(currentBgIndex - 1); resetAutoTimer(); }
+    function updateBgCounter() { document.getElementById('bgCounter') && (document.getElementById('bgCounter').innerText = `圖片 ${currentBgIndex+1} / ${bgImagesElements.length}`); }
+    function startAutoSwitch() { if(bgInterval) clearInterval(bgInterval); bgInterval = setInterval(() => nextBg(), AUTO_SWITCH_SEC * 1000); }
+    function resetAutoTimer() { if(bgInterval) { clearInterval(bgInterval); startAutoSwitch(); } }
+
+    // 2. 固定課表
+    const scheduleData = {
+        periods: ['第1', '第2', '第3', '第4', '第5', '第6', '第7'],
+        monday: ['--', '--', '302', '301', '--', '--', '--'],
+        tuesday: ['--', '--', '--', '305', '--', '--', '503'],
+        wednesday: ['--', '--', '503', '504', '--', '--', '--'],
+        thursday: ['--', '--', '504', '304', '303', '--', '--'],
+        friday: ['--', '--', '--', '--', '--', '--', '--']
+    };
+
+    function renderClassTable() {
+        const tbody = document.getElementById('scheduleTbody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        for(let i=0; i<scheduleData.periods.length; i++) {
+            const row = tbody.insertRow();
+            const th = document.createElement('th');
+            th.innerText = scheduleData.periods[i];
+            row.appendChild(th);
+            const week = [scheduleData.monday, scheduleData.tuesday, scheduleData.wednesday, scheduleData.thursday, scheduleData.friday];
+            for(let w=0; w<week.length; w++) {
+                const td = document.createElement('td');
+                td.innerText = week[w][i] || '—';
+                row.appendChild(td);
+            }
+        }
+    }
+
+    // 3. Google 試算表整合功能
+    function getTodayString() {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function parseCSVRow(rowStr) {
+        const result = [];
+        let inQuote = false;
+        let current = '';
+        for (let i = 0; i < rowStr.length; i++) {
+            const char = rowStr[i];
+            if (char === '"') { inQuote = !inQuote; } 
+            else if (char === ',' && !inQuote) { result.push(current.trim()); current = ''; } 
+            else { current += char; }
+        }
+        result.push(current.trim());
+        return result.map(field => field.replace(/^"|"$/g, ''));
+    }
+
+    // 【已修正】移除了重複宣告，優化為標準發布 URL 路徑判定
+    async function fetchSheetData(sheetName) {
+        if (!USE_REAL_SHEET) return null;
+        
+        // 標準發布路徑使用 /d/ 格式，並加上隨機時間參數防快取
+        const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
+        
+        try {
+            console.log(`正在讀取工作表: ${sheetName}`);
+            const resp = await fetch(url, { cache: 'no-store' });
+            
+            if (!resp.ok) {
+                console.warn(`HTTP 錯誤: ${resp.status}`);
+                return null;
+            }
+            
+            const csvText = await resp.text();
+            if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) {
+                console.warn(`抓取失敗：請檢查試算表是否已確實發布為 CSV 格式`);
+                return null;
+            }
+            
+            const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
+            if (rows.length < 2) return null;
+            
+            return rows.map(row => parseCSVRow(row));
+            
+        } catch(e) {
+            console.warn(`讀取工作表 ${sheetName} 錯誤:`, e.message);
+            return null;
+        }
+    }
+
+    async function fetchSheetRowByDate(sheetName) {
+        const allRows = await fetchSheetData(sheetName);
+        if (!allRows || allRows.length < 2) return null;
+        const todayStr = getTodayString();
+        for (let i = 1; i < allRows.length; i++) {
+            if (allRows[i][0] === todayStr) return allRows[i];
+        }
+        return allRows[1]; // 找不到今日日期就回傳第一筆非表頭資料
+    }
+
+    async function updateDuty() {
+        const dutyDiv = document.getElementById('dutyValue');
+        if (!dutyDiv) return;
+        dutyDiv.innerText = "⏳ 查詢中...";
+        let dutyText = null;
+        if (USE_REAL_SHEET) {
+            const row = await fetchSheetRowByDate('值日生');
+            if (row && row.length >= 2) dutyText = row[1];
+        }
+        dutyDiv.innerText = dutyText || DEMO_DUTY;
+        const hintSpan = document.getElementById('dutyUpdateHint');
+        if (hintSpan) {
+            hintSpan.innerText = `${USE_REAL_SHEET && dutyText ? '📡 試算表' : '📋 示範模式'} · 更新: ${new Date().toLocaleTimeString()}`;
+        }
+    }
+
+    let currentTodos = [];
+    async function loadTodosFromSheet() {
+        if (USE_REAL_SHEET) {
+            const rowData = await fetchSheetRowByDate('Todo');
+            // 【已修正】加強索引邊界與空值防禦，確保 rowData[i] 存在才抓取
+            if (rowData && rowData.length >= 2) {
+                const tasks = [];
+                for (let i = 1; i <= 5 && i < rowData.length; i++) {
+                    if (rowData[i] && rowData[i].trim() !== "") {
+                        tasks.push(rowData[i].trim());
+                    }
+                }
+                if (tasks.length > 0) return tasks;
+            }
+        }
+        return [...DEMO_TODOS];
+    }
+
+    function renderTodoList(todosArray) {
+        const container = document.getElementById('todoListContainer');
+        if (!container) return;
+        container.innerHTML = '';
+        todosArray.forEach((item, idx) => {
+            const li = document.createElement('li');
+            const statusSpan = document.createElement('span');
+            statusSpan.className = 'todo-status';
+            statusSpan.innerHTML = item.completed ? '✅' : '◻️';
+            statusSpan.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentTodos[idx].completed = !currentTodos[idx].completed;
+                saveTodosToLocal();
+                renderTodoList(currentTodos);
+            });
+            const textSpan = document.createElement('span');
+            textSpan.className = `todo-text ${item.completed ? 'done' : ''}`;
+            textSpan.innerText = item.text;
+            li.appendChild(statusSpan);
+            li.appendChild(textSpan);
+            container.appendChild(li);
+        });
+    }
+
+    function saveTodosToLocal() {
+        localStorage.setItem('class_todo_items', JSON.stringify(currentTodos.map(t => ({ text: t.text, completed: t.completed }))));
+    }
+
+    async function refreshTodos() {
+        let rawTasks = await loadTodosFromSheet();
+        while (rawTasks.length < 5) rawTasks.push("✨ 待辦事項");
+        rawTasks = rawTasks.slice(0, 5);
+        const stored = localStorage.getItem('class_todo_items');
+        let completedMap = {};
+        if (stored) {
+            try {
+                const old = JSON.parse(stored);
+                old.forEach(o => { completedMap[o.text] = o.completed; });
+            } catch(e) {}
+        }
+        currentTodos = rawTasks.map(task => ({ text: task, completed: completedMap[task] === true }));
+        saveTodosToLocal();
+        renderTodoList(currentTodos);
+    }
+
+    // 4. 股市即時資訊
+    const stockConfig = {
+        cnhk: [
+            { name: "上證指數", code: "000001.SS", basePrice: 3150 },
+            { name: "深證成指", code: "399001.SZ", basePrice: 10500 },
+            { name: "恒生指數", code: "HSI", basePrice: 19200 }
+        ],
+        tw: [{ name: "加權指數", code: "^TWII", basePrice: 19800 }],
+        us: [
+            { name: "S&P 500", code: "SPY", basePrice: 510 },
+            { name: "納斯達克", code: "QQQ", basePrice: 445 },
+            { name: "費城半導體", code: "SOXX", basePrice: 220 }
+        ]
+    };
+    let stockCurrentPrices = {};
+
+    function generateMockPrice(base, vol = 0.012) {
+        const changePercent = (Math.random() - 0.5) * vol * 2;
+        return { price: (base * (1 + changePercent)).toFixed(2), changePercent: (changePercent * 100).toFixed(2) };
+    }
+
+    function updateStockUI() {
+        const renderGroup = (id, config) => {
+            const div = document.getElementById(id);
+            if (!div) return;
+            div.innerHTML = config.map(s => {
+                const curr = stockCurrentPrices[s.code] || generateMockPrice(s.basePrice);
+                stockCurrentPrices[s.code] = curr;
+                const changeVal = parseFloat(curr.changePercent);
+                return `<div class="stock-item"><span class="stock-name">${s.name}</span><span><span class="stock-price">${curr.price}</span><span class="stock-change ${changeVal >= 0 ? 'positive' : 'negative'}"> ${changeVal >= 0 ? '▲' : '▼'} ${Math.abs(changeVal)}%</span></span></div>`;
+            }).join('');
+        };
+        renderGroup('cnhkStockList', stockConfig.cnhk);
+        renderGroup('twStockList', stockConfig.tw);
+        renderGroup('usStockList', stockConfig.us);
+        document.getElementById('stockUpdateTime').innerHTML = `🕒 模擬更新: ${new Date().toLocaleTimeString()}`;
+    }
+
+    function startStockTicker() {
+        updateStockUI();
+        setInterval(() => {
+            for (let k in stockCurrentPrices) stockCurrentPrices[k] = generateMockPrice(parseFloat(stockCurrentPrices[k].price), 0.002);
+            updateStockUI();
+        }, 5000);
+    }
+
+    // 初始化所有
+    async function initDashboard() {
+        renderClassTable();
+        initBackground();
+        await updateDuty();
+        await refreshTodos();
+        startStockTicker();
+        setInterval(async () => { await updateDuty(); await refreshTodos(); }, 15 * 60 * 1000);
+        document.getElementById('prevBgBtn').addEventListener('click', prevBg);
+        document.getElementById('nextBgBtn').addEventListener('click', nextBg);
+    }
+    window.onload = initDashboard;
+</script>
+</body>
+</html>
