@@ -470,12 +470,12 @@
     }
 
     // 【已修正】移除了重複宣告，優化為標準發布 URL 路徑判定
+// 專為 2PACX- 發布網址優化的資料抓取函數（已徹底移除重複宣告與邏輯衝突）
     async function fetchSheetData(sheetName) {
         if (!USE_REAL_SHEET) return null;
         
-        // 標準發布路徑使用 /d/ 格式，並加上隨機時間參數防快取
-       // 正確的發布專用路徑（帶有 /d/e/ 格式）
-      const url = `https://docs.google.com/spreadsheets/d/e/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
+        // 正確的發布專用路徑（/d/e/），並加上隨機時間參數防快取
+        const url = `https://docs.google.com/spreadsheets/d/e/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
         
         try {
             console.log(`正在讀取工作表: ${sheetName}`);
@@ -487,8 +487,10 @@
             }
             
             const csvText = await resp.text();
+            
+            // 檢查是否抓到錯誤的 HTML 網頁（例如未公開、ID 錯了 Google 吐出的登入頁）
             if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) {
-                console.warn(`抓取失敗：請檢查試算表是否已確實發布為 CSV 格式`);
+                console.warn(`抓取失敗：請檢查試算表是否已確實發布為 CSV 格式。目前抓到的是網頁而非資料。`);
                 return null;
             }
             
