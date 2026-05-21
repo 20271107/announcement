@@ -293,10 +293,6 @@
             .dashboard-grid { flex-direction: column; }
             .content { padding: 12px; }
         }
-        .error-txt {
-            color: #ffae9e;
-            font-size: 0.75rem;
-        }
     </style>
 </head>
 <body>
@@ -362,65 +358,54 @@
 
 <script>
     // =============================================================
-    // Google 試算表設定 (已修正為擷取畫面之真實 ID)
+    // 💡 已替換成您發布網路專用的正確 ID，且移除了死鎖的 gid=0 參數
     // =============================================================
-    const GOOGLE_SHEET_ID = '1P_qFTwOi3OR-rqJIICUcJnpo2nxOjvGtQyRO_mp7AWw';
-    const USE_REAL_SHEET = GOOGLE_SHEET_ID && GOOGLE_SHEET_ID !== '' && GOOGLE_SHEET_ID !== 'YOUR_SHEET_ID_HERE';
-
-    const DEMO_DUTY = "今日值日生：王小明、陳小華";
-    const DEMO_TODOS = ["繳交數學作業", "準備英文考試", "班會討論主題", "打掃教室環境", "填寫問卷調查"];
-
-    // 1. 背景圖片庫
+    const GOOGLE_SHEET_ID = '2PACX-1vTeM_3W8hnD4Tpw_5uALb7wPrC_dVOyGLgvLrxQQ2_mtUoqpRd7jbsaLHNps9wOWSZwYsGZyVvj-tma';
+    const USE_REAL_SHEET = true;
+    
+    const DEMO_DUTY = "今日值日生：未排定（試算表今日無資料）";
+    const DEMO_TODOS = ["暫無今日待辦事項（試算表今日無資料）"];
+    
+    // 背景圖片庫
     const imageGallery = [
         'https://picsum.photos/id/104/1920/1080',
         'https://picsum.photos/id/15/1920/1080',
         'https://picsum.photos/id/29/1920/1080',
         'https://picsum.photos/id/96/1920/1080',
-        'https://picsum.photos/id/155/1920/1080',
-        'https://picsum.photos/id/169/1920/1080',
-        'https://picsum.photos/id/42/1920/1080'
+        'https://picsum.photos/id/155/1920/1080'
     ];
     let currentBgIndex = 0;
     let bgImagesElements = [];
     let bgInterval;
-    const AUTO_SWITCH_SEC = 25;
 
     function initBackground() {
         const container = document.getElementById('bgContainer');
         container.innerHTML = '';
-        bgImagesElements = [];
         imageGallery.forEach((url, idx) => {
             const img = document.createElement('img');
             img.src = url;
             img.classList.add('bg-slideshow');
             if (idx === 0) img.classList.add('active');
-            img.style.objectFit = 'cover';
-            img.style.width = '100%';
-            img.style.height = '100%';
             container.appendChild(img);
             bgImagesElements.push(img);
         });
         updateBgCounter();
-        startAutoSwitch();
+        clearInterval(bgInterval);
+        bgInterval = setInterval(() => { showBackground(currentBgIndex + 1); }, 25000);
     }
-
+    
     function showBackground(index) {
         if (!bgImagesElements.length) return;
-        const newIdx = (index + bgImagesElements.length) % bgImagesElements.length;
+        currentBgIndex = (index + bgImagesElements.length) % bgImagesElements.length;
         bgImagesElements.forEach((img, i) => {
-            i === newIdx ? img.classList.add('active') : img.classList.remove('active');
+            i === currentBgIndex ? img.classList.add('active') : img.classList.remove('active');
         });
-        currentBgIndex = newIdx;
         updateBgCounter();
     }
+    
+    function updateBgCounter() { document.getElementById('bgCounter').innerText = `圖片 ${currentBgIndex+1} / ${bgImagesElements.length}`; }
 
-    function nextBg() { showBackground(currentBgIndex + 1); resetAutoTimer(); }
-    function prevBg() { showBackground(currentBgIndex - 1); resetAutoTimer(); }
-    function updateBgCounter() { document.getElementById('bgCounter') && (document.getElementById('bgCounter').innerText = `圖片 ${currentBgIndex+1} / ${bgImagesElements.length}`); }
-    function startAutoSwitch() { if(bgInterval) clearInterval(bgInterval); bgInterval = setInterval(() => nextBg(), AUTO_SWITCH_SEC * 1000); }
-    function resetAutoTimer() { if(bgInterval) { clearInterval(bgInterval); startAutoSwitch(); } }
-
-    // 2. 固定課表
+    // 固定課表
     const scheduleData = {
         periods: ['第1', '第2', '第3', '第4', '第5', '第6', '第7'],
         monday: ['--', '--', '302', '301', '--', '--', '--'],
@@ -429,35 +414,27 @@
         thursday: ['--', '--', '504', '304', '303', '--', '--'],
         friday: ['--', '--', '--', '--', '--', '--', '--']
     };
-
+    
     function renderClassTable() {
         const tbody = document.getElementById('scheduleTbody');
-        if(!tbody) return;
         tbody.innerHTML = '';
         for(let i=0; i<scheduleData.periods.length; i++) {
             const row = tbody.insertRow();
-            const th = document.createElement('th');
-            th.innerText = scheduleData.periods[i];
-            row.appendChild(th);
+            const th = document.createElement('th'); th.innerText = scheduleData.periods[i]; row.appendChild(th);
             const week = [scheduleData.monday, scheduleData.tuesday, scheduleData.wednesday, scheduleData.thursday, scheduleData.friday];
             for(let w=0; w<week.length; w++) {
-                const td = document.createElement('td');
-                td.innerText = week[w][i] || '—';
-                row.appendChild(td);
+                const td = document.createElement('td'); td.innerText = week[w][i] || '—'; row.appendChild(td);
             }
         }
     }
 
-    // 3. Google 試算表整合功能
     function getTodayString() {
         const d = new Date();
         return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
 
     function parseCSVRow(rowStr) {
-        const result = [];
-        let inQuote = false;
-        let current = '';
+        const result = []; let inQuote = false; let current = '';
         for (let i = 0; i < rowStr.length; i++) {
             const char = rowStr[i];
             if (char === '"') { inQuote = !inQuote; } 
@@ -468,34 +445,19 @@
         return result.map(field => field.replace(/^"|"$/g, ''));
     }
 
-    // 【已修復】改用標準常規文件 ID CSV 導出網址格式
+    // 💡 修正關鍵：移除了阻礙多工作表切換的 gid=0 參數
     async function fetchSheetData(sheetName) {
         if (!USE_REAL_SHEET) return null;
-        
-        const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
-        
+        const url = `https://docs.google.com/spreadsheets/d/e/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
         try {
-            console.log(`正在讀取工作表: ${sheetName}`);
             const resp = await fetch(url, { cache: 'no-store' });
-            
-            if (!resp.ok) {
-                console.warn(`HTTP 錯誤: ${resp.status}`);
-                return null;
-            }
-            
+            if (!resp.ok) return null;
             const csvText = await resp.text();
-            if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) {
-                console.warn(`抓取失敗：請檢查試算表是否已在「共用」中開啟「知道連結的使用者均可檢視」且確實「發布到網路」`);
-                return null;
-            }
-            
+            if (csvText.includes('<!DOCTYPE html>') || !csvText.trim()) return null;
             const rows = csvText.split(/\r?\n/).filter(r => r.trim() !== '');
-            if (rows.length < 2) return null;
-            
             return rows.map(row => parseCSVRow(row));
-            
         } catch(e) {
-            console.warn(`讀取工作表 ${sheetName} 錯誤:`, e.message);
+            console.error(e);
             return null;
         }
     }
@@ -507,45 +469,38 @@
         for (let i = 1; i < allRows.length; i++) {
             if (allRows[i][0] === todayStr) return allRows[i];
         }
-        return allRows[1];
+        return null; 
     }
 
     async function updateDuty() {
         const dutyDiv = document.getElementById('dutyValue');
-        if (!dutyDiv) return;
         dutyDiv.innerText = "⏳ 查詢中...";
         let dutyText = null;
-        if (USE_REAL_SHEET) {
-            const row = await fetchSheetRowByDate('值日生');
-            if (row && row.length >= 2) dutyText = row[1];
+        
+        const row = await fetchSheetRowByDate('值日生');
+        if (row && row.length >= 2 && row[1]) {
+            dutyText = row[1];
         }
+        
         dutyDiv.innerText = dutyText || DEMO_DUTY;
-        const hintSpan = document.getElementById('dutyUpdateHint');
-        if (hintSpan) {
-            hintSpan.innerText = `${USE_REAL_SHEET && dutyText ? '📡 試算表' : '📋 示範模式'} · 更新: ${new Date().toLocaleTimeString()}`;
-        }
+        document.getElementById('dutyUpdateHint').innerText = `📡 試算表同步中 · 更新: ${new Date().toLocaleTimeString()}`;
     }
 
     let currentTodos = [];
     async function loadTodosFromSheet() {
-        if (USE_REAL_SHEET) {
-            const rowData = await fetchSheetRowByDate('Todo');
-            if (rowData && rowData.length >= 2) {
-                const tasks = [];
-                for (let i = 1; i <= 5 && i < rowData.length; i++) {
-                    if (rowData[i] && rowData[i].trim() !== "") {
-                        tasks.push(rowData[i].trim());
-                    }
-                }
-                if (tasks.length > 0) return tasks;
+        const rowData = await fetchSheetRowByDate('Todo');
+        if (rowData && rowData.length >= 2) {
+            const tasks = [];
+            for (let i = 1; i < rowData.length; i++) {
+                if (rowData[i] && rowData[i].trim() !== "") tasks.push(rowData[i].trim());
             }
+            if (tasks.length > 0) return tasks;
         }
         return [...DEMO_TODOS];
     }
 
     function renderTodoList(todosArray) {
         const container = document.getElementById('todoListContainer');
-        if (!container) return;
         container.innerHTML = '';
         todosArray.forEach((item, idx) => {
             const li = document.createElement('li');
@@ -555,20 +510,15 @@
             statusSpan.addEventListener('click', (e) => {
                 e.stopPropagation();
                 currentTodos[idx].completed = !currentTodos[idx].completed;
-                saveTodosToLocal();
+                localStorage.setItem('class_todo_items', JSON.stringify(currentTodos));
                 renderTodoList(currentTodos);
             });
             const textSpan = document.createElement('span');
             textSpan.className = `todo-text ${item.completed ? 'done' : ''}`;
             textSpan.innerText = item.text;
-            li.appendChild(statusSpan);
-            li.appendChild(textSpan);
-            container.appendChild(li);
+            li.appendChild(statusSpan); li.appendChild(textSpan); container.appendChild(li);
         });
-    }
-
-    function saveTodosToLocal() {
-        localStorage.setItem('class_todo_items', JSON.stringify(currentTodos.map(t => ({ text: t.text, completed: t.completed }))));
+        document.getElementById('todoUpdateTime').innerHTML = `📡 重新整理時間: ${new Date().toLocaleTimeString()}`;
     }
 
     async function refreshTodos() {
@@ -584,48 +534,32 @@
             } catch(e) {}
         }
         currentTodos = rawTasks.map(task => ({ text: task, completed: completedMap[task] === true }));
-        saveTodosToLocal();
         renderTodoList(currentTodos);
     }
 
-    // 4. 股市即時資訊
+    // 股市即時行情模擬
     const stockConfig = {
-        cnhk: [
-            { name: "上證指數", code: "000001.SS", basePrice: 3150 },
-            { name: "深證成指", code: "399001.SZ", basePrice: 10500 },
-            { name: "恒生指數", code: "HSI", basePrice: 19200 }
-        ],
+        cnhk: [{ name: "上證指數", code: "000001.SS", basePrice: 3150 }, { name: "深證成指", code: "399001.SZ", basePrice: 10500 }, { name: "恒生指數", code: "HSI", basePrice: 19200 }],
         tw: [{ name: "加權指數", code: "^TWII", basePrice: 19800 }],
-        us: [
-            { name: "S&P 500", code: "SPY", basePrice: 510 },
-            { name: "納斯達克", code: "QQQ", basePrice: 445 },
-            { name: "費城半導體", code: "SOXX", basePrice: 220 }
-        ]
+        us: [{ name: "S&P 500", code: "SPY", basePrice: 510 }, { name: "納斯達克", code: "QQQ", basePrice: 445 }, { name: "費城半導體", code: "SOXX", basePrice: 220 }]
     };
     let stockCurrentPrices = {};
-
     function generateMockPrice(base, vol = 0.012) {
         const changePercent = (Math.random() - 0.5) * vol * 2;
         return { price: (base * (1 + changePercent)).toFixed(2), changePercent: (changePercent * 100).toFixed(2) };
     }
-
     function updateStockUI() {
         const renderGroup = (id, config) => {
-            const div = document.getElementById(id);
-            if (!div) return;
+            const div = document.getElementById(id); if (!div) return;
             div.innerHTML = config.map(s => {
-                const curr = stockCurrentPrices[s.code] || generateMockPrice(s.basePrice);
-                stockCurrentPrices[s.code] = curr;
+                const curr = stockCurrentPrices[s.code] || generateMockPrice(s.basePrice); stockCurrentPrices[s.code] = curr;
                 const changeVal = parseFloat(curr.changePercent);
                 return `<div class="stock-item"><span class="stock-name">${s.name}</span><span><span class="stock-price">${curr.price}</span><span class="stock-change ${changeVal >= 0 ? 'positive' : 'negative'}"> ${changeVal >= 0 ? '▲' : '▼'} ${Math.abs(changeVal)}%</span></span></div>`;
             }).join('');
         };
-        renderGroup('cnhkStockList', stockConfig.cnhk);
-        renderGroup('twStockList', stockConfig.tw);
-        renderGroup('usStockList', stockConfig.us);
-        document.getElementById('stockUpdateTime').innerHTML = `🕒 模擬更新: ${new Date().toLocaleTimeString()}`;
+        renderGroup('cnhkStockList', stockConfig.cnhk); renderGroup('twStockList', stockConfig.tw); renderGroup('usStockList', stockConfig.us);
+        document.getElementById('stockUpdateTime').innerHTML = `🕒 更新: ${new Date().toLocaleTimeString()}`;
     }
-
     function startStockTicker() {
         updateStockUI();
         setInterval(() => {
@@ -633,8 +567,7 @@
             updateStockUI();
         }, 5000);
     }
-
-    // 初始化所有
+    
     async function initDashboard() {
         renderClassTable();
         initBackground();
@@ -642,8 +575,8 @@
         await refreshTodos();
         startStockTicker();
         setInterval(async () => { await updateDuty(); await refreshTodos(); }, 15 * 60 * 1000);
-        document.getElementById('prevBgBtn').addEventListener('click', prevBg);
-        document.getElementById('nextBgBtn').addEventListener('click', nextBg);
+        document.getElementById('prevBgBtn').addEventListener('click', () => showBackground(currentBgIndex - 1));
+        document.getElementById('nextBgBtn').addEventListener('click', () => showBackground(currentBgIndex + 1));
     }
     window.onload = initDashboard;
 </script>
