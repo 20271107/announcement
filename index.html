@@ -474,7 +474,8 @@
         if (!USE_REAL_SHEET) return null;
         
         // 標準發布路徑使用 /d/ 格式，並加上隨機時間參數防快取
-        const url = `https://docs.google.com/spreadsheets/d/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
+       // 正確的發布專用路徑（帶有 /d/e/ 格式）
+      const url = `https://docs.google.com/spreadsheets/d/e/${GOOGLE_SHEET_ID}/pub?output=csv&sheet=${encodeURIComponent(sheetName)}&t=${new Date().getTime()}`;
         
         try {
             console.log(`正在讀取工作表: ${sheetName}`);
